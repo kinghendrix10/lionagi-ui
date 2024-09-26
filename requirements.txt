@@ -1,0 +1,11 @@
+# /requirements.txt
+
+Flask
+Flask-SocketIO
+Flask-SQLAlchemy
+python-dotenv
+reportlab
+pandas
+lionagi
+eventlet
+gunicorn
