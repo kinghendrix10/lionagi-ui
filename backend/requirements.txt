@@ -1,0 +1,8 @@
+Flask==2.0.1
+Flask-SQLAlchemy==2.5.1
+Flask-Migrate==3.1.0
+Flask-CORS==3.0.10
+pytest==7.1.2
+pytest-flask==1.2.0
+lionagi==0.1.0  # Replace with the correct version of lionagi
+python-dotenv==0.19.1
