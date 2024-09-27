@@ -32,6 +32,20 @@
                 <button type="submit">Add/Update Tool</button>
             </form>
             <ul id="tool-list"></ul>
+            <table id="agent-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Reports To</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Agent rows will be inserted here dynamically -->
+                </tbody>
+            </table>
         </section>
     </main>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>

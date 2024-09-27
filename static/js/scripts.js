@@ -167,8 +167,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    const updateDatabaseButton = document.getElementById('update-database');
+    if (updateDatabaseButton) {
+        updateDatabaseButton.addEventListener('click', function() {
+            fetch('/update_database', {
+                method: 'POST',
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                alert('Database updated successfully');
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('Failed to update database');
+            });
+        });
+    }
     // Load initial data
     if (agentList) loadAgents();
     if (toolList) loadTools();
     if (apiList) loadAPIServices();
 });
+

@@ -3,6 +3,9 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate, upgrade
+from flask import jsonify
+import subprocess
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -23,6 +26,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agents.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 socketio = SocketIO(app)
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 class Agent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -30,6 +34,7 @@ class Agent(db.Model):
     role = db.Column(db.String(200), nullable=False)
     instructions = db.Column(db.Text, nullable=False)
     reporting_to = db.Column(db.String(100))
+    agent_type = db.Column(db.String(100))
 
 class Tool(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -60,7 +65,8 @@ def manage_agents():
             name=request.json['name'],
             role=request.json['role'],
             instructions=request.json['instructions'],
-            reporting_to=request.json.get('reporting_to')
+            reporting_to=request.json.get('reporting_to'),
+            agent_type=request.json.get('agent_type')
         )
         db.session.add(new_agent)
         db.session.commit()
@@ -71,7 +77,8 @@ def manage_agents():
         "id": agent.id,
         "name": agent.name,
         "role": agent.role,
-        "reporting_to": agent.reporting_to
+        "reporting_to": agent.reporting_to,
+        "agent_type": agent.agent_type
     } for agent in agents])
 
 @app.route('/agents/<int:agent_id>', methods=['GET', 'PUT', 'DELETE'])
@@ -84,7 +91,8 @@ def agent_operations(agent_id):
             "name": agent.name,
             "role": agent.role,
             "instructions": agent.instructions,
-            "reporting_to": agent.reporting_to
+            "reporting_to": agent.reporting_to,
+            "agent_type": agent.agent_type
         })
     
     elif request.method == 'PUT':
@@ -92,6 +100,7 @@ def agent_operations(agent_id):
         agent.role = request.json.get('role', agent.role)
         agent.instructions = request.json.get('instructions', agent.instructions)
         agent.reporting_to = request.json.get('reporting_to', agent.reporting_to)
+        agent.agent_type = request.json.get('agent_type', agent.agent_type)
         db.session.commit()
         return jsonify({"message": "Agent updated successfully"})
     
@@ -100,37 +109,11 @@ def agent_operations(agent_id):
         db.session.commit()
         return jsonify({"message": "Agent deleted successfully"})
 
-@app.route('/execute_agents', methods=['POST'])
-def execute_agents():
-    project_name = request.json.get('project_name', 'Business Idea')
-    
-    agents = Agent.query.all()
-    graph_executor = GraphExecutor()
-    base_agents = {}
-
-    for agent in agents:
-        agent_node = System(system=agent.role)
-        agent_inst = Instruction(agent.instructions)
-        graph_executor.add_node(agent_node)
-        graph_executor.add_node(agent_inst)
-        graph_executor.add_edge(agent_node, agent_inst)
-        
-        agent_exe = InstructionMapEngine()
-        base_agent = BaseAgent(
-            structure=graph_executor,
-            executable=agent_exe,
-            output_parser=assistant_parser
-        )
-        base_agents[agent.name] = base_agent
-
-    results = {}
-    for agent in agents:
-        if agent.name not in results:
-            result = asyncio.run(base_agents[agent.name].execute())
-            results[agent.name] = result
-
-    report_file = generate_report(results, project_name)
-    return send_file(report_file, as_attachment=True)
+def master_parser(agent):
+    output = []
+    for branch in agent.executable.branches.values():
+        output.append(branch.to_df())
+    return output
 
 def assistant_parser(agent):
     output = []
@@ -139,6 +122,50 @@ def assistant_parser(agent):
             if msg["role"] == "assistant":
                 output.append(msg["content"])
     return output
+
+def create_agent(agent_data):
+    system = System(system=agent_data.role)
+    instruction = Instruction(agent_data.instructions)
+    graph = GraphExecutor()
+    graph.add_node(system)
+    graph.add_node(instruction)
+    graph.add_edge(system, instruction)
+    exe = InstructionMapEngine()
+    return BaseAgent(
+        structure=graph,
+        executable=exe,
+        output_parser=assistant_parser if agent_data.agent_type != 'BusinessIdea' else master_parser
+    )
+
+def build_agent_graph(agents):
+    graph = GraphExecutor()
+    agent_nodes = {}
+    for agent in agents:
+        agent_node = create_agent(agent)
+        agent_nodes[agent.name] = agent_node
+        graph.add_node(agent_node)
+    
+    for agent in agents:
+        if agent.reporting_to and agent.reporting_to in agent_nodes:
+            graph.add_edge(agent_nodes[agent.reporting_to], agent_nodes[agent.name])
+    
+    return graph, agent_nodes
+
+@app.route('/execute_agents', methods=['POST'])
+async def execute_agents():
+    project_name = request.json.get('project_name', 'Business Idea')
+    
+    agents = Agent.query.all()
+    graph, agent_nodes = build_agent_graph(agents)
+    
+    results = {}
+    for agent_name, agent_node in agent_nodes.items():
+        if agent_name not in results:
+            result = await agent_node.execute()
+            results[agent_name] = result
+    
+    report_file = generate_report(results, project_name)
+    return send_file(report_file, as_attachment=True)
 
 def generate_report(results, project_name):
     doc = SimpleDocTemplate(f"{project_name}_report.pdf", pagesize=letter,
@@ -167,6 +194,21 @@ def load_api_keys():
         if service.name.lower() == 'openai':
             os.environ["OPENAI_API_KEY"] = service.key
 
+@app.route('/update_database', methods=['POST'])
+def update_database():
+    try:
+        # Run database migrations
+        with app.app_context():
+            upgrade()
+        
+        # Run the Flask-Migrate commands
+        subprocess.run(["flask", "db", "migrate"], check=True)
+        subprocess.run(["flask", "db", "upgrade"], check=True)
+        
+        return jsonify({"message": "Database updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
