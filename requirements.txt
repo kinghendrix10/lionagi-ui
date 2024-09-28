@@ -1,12 +1,7 @@
 # /requirements.txt
 
-Flask
-Flask-SocketIO
-Flask-SQLAlchemy
-python-dotenv
-reportlab
+streamlit
 pandas
-lionagi
-eventlet
-gunicorn
-Flask-Migrate
+reportlab
+# lionagi
+python-dotenv
