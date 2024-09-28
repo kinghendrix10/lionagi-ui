@@ -1,7 +1,10 @@
 # /requirements.txt
 
+nest_asyncio
 streamlit
 pandas
 reportlab
 # lionagi
 python-dotenv
+networkx
+matplotlib
