@@ -2,7 +2,7 @@
 
 ## Project Description
 
-LionAGI-UI is a user interface for building and managing agent networks. It allows users to create master and assistant agents, define their roles and instructions, and visualize the agent network structure. The project aims to provide a flexible and intuitive interface for managing complex agent networks.
+LionAGI-UI is a user interface for building and managing agent for reasearch purposes. It allows users to create master and assistant agents, define their roles and instructions, and visualize the agent network structure using the LionAGI framework. The project aims to provide a flexible and intuitive interface for managing complex agent networks.
 
 ## Features
 
@@ -10,6 +10,14 @@ LionAGI-UI is a user interface for building and managing agent networks. It allo
 - Define roles and instructions for each agent
 - Visualize the agent network structure
 - Generate reports based on agent network execution
+
+## Configuration
+
+The application uses environment variables to manage configuration settings. Create a `.env` file in the root directory of the project and add the following environment variables:
+
+```
+CEREBRAS_API_KEY=your_cerebras_api_key
+```
 
 ## Installation
 
