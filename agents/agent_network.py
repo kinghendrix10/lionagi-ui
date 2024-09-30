@@ -42,10 +42,11 @@ class AgentNetwork:
             self.analysis_process.remove_edge(agent.name, child.name)
         del self.agents[agent_name]
 
-    def execute(self):
+    async def execute(self):
         if not self.root:
             return "No root agent defined"
-        result = asyncio.run(self.root.base_agent.execute())
+        result = await (self.root.base_agent.execute())
+        # result = asyncio.run(self.root.base_agent.execute())
         return result
 
     def generate_report(self, project_name):
