@@ -3,24 +3,31 @@ import asyncio
 import streamlit as st
 from agents.agent_network import AgentNetwork
 from agents.agent import Agent
-import nest_asyncio
+import pandas as pd
+import os
+from dotenv import load_dotenv
 
-nest_asyncio.apply()
+load_dotenv()
+
+os.environ['CEREBRAS_API_KEY'] = os.getenv("CEREBRAS_API_KEY")
+
+from lionagi.integrations.config import cerebras_schema
+
+cerebras_schema["API_key_schema"] = os.environ["CEREBRAS_API_KEY"]
 
 def main():
     st.title("Agent Network Builder")
-
+    print ("App started")
     network = AgentNetwork()
-
+    print ("Network created")
     st.header("Create Master Agent")
     master_name = st.text_input("Master Agent Name", value="BusinessIdea")
     master_role = st.text_area("Master Agent Role", value="An experienced business analyst with a keen eye for market opportunities and potential pitfalls")
     master_instructions = st.text_area("Master Agent Instructions", value="As an expert business analyst, evaluate the given business idea. Assess its viability, potential, and uniqueness in the market. Identify key strengths, weaknesses, opportunities, and threats. Provide an objective analysis of the idea, potential for success and any areas that need improvement.")
 
     master_agent = Agent(master_name, master_role, master_instructions, is_lead=True)
-    print(master_agent)
     network.add_agent(master_agent)
-
+    
     st.header("Create Assistant Agents")
     num_assistants = st.number_input("Number of Assistant Agents", min_value=1, value=1)
 
@@ -37,12 +44,13 @@ def main():
     project_name = st.text_input("Enter project name for the report")
     if project_name and st.button("Execute Agent Network and Generate Report"):
         with st.spinner("Executing agent network..."):
-            # Run the coroutine properly
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(network.execute())
+            print (f"Api Key: {cerebras_schema['API_key_schema']}")
+            result = network.execute()
+            print (f"Result: {result}")
             st.success("Execution complete!")
-            st.write(result)
-
+            # Access execution results from the root agent
+            exec_engine = network.root.base_agent.executable
+            print (f"Execution Engine: {exec_engine}")
             report_buffer = network.generate_report(project_name)
             if report_buffer:
                 st.download_button(

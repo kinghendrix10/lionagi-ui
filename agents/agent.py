@@ -4,6 +4,18 @@ from lionagi.core.executor.graph_executor import GraphExecutor
 from lionagi.core.engine.instruction_map_engine import InstructionMapEngine
 from lionagi.core.agent.base_agent import BaseAgent
 from utils.parsers import master_parser, assistant_parser
+import networkx as nx 
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+os.environ['CEREBRAS_API_KEY'] = os.getenv("CEREBRAS_API_KEY")
+
+from lionagi.integrations.config import cerebras_schema
+
+cerebras_schema["API_key_schema"] = os.environ["CEREBRAS_API_KEY"]
 
 class Agent:
     def __init__(self, name, role, instructions, parent=None, is_lead=False):
@@ -26,12 +38,25 @@ class Agent:
 
     def add_child(self, child):
         self.children.append(child)
-        self.graph.add_node(child.system)
+        # Merge the child's graph into the parent's graph
+        self.merge_graphs(child.graph)
+        # Add an edge from this agent's instruction to the child's system node
         self.graph.add_edge(self.instruction, child.system)
+
+    def merge_graphs(self, other_graph):
+        # Merge nodes
+        for node_id, node in other_graph.internal_nodes.items():
+            if node_id not in self.graph.internal_nodes:
+                self.graph.internal_nodes[node_id] = node
+        # Merge edges
+        for edge_id, edge in other_graph.internal_edges.items():
+            if edge_id not in self.graph.internal_edges:
+                self.graph.internal_edges[edge_id] = edge
 
     def remove_child(self, child):
         self.children.remove(child)
         self.graph.remove_node(child.system)
 
-    def display(self):
-        return f"Agent: {self.name}, Role: {self.system}, Instructions: {self.instruction}"
+    def report(self):
+        # return f"Agent: {self.name}, Role: {self.system}, Instructions: {self.instruction}"
+        return self.base_agent.executable
