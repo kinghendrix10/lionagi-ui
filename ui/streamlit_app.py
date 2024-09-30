@@ -1,5 +1,4 @@
 # ui/streamlit_app.py
-import asyncio
 import streamlit as st
 from agents.agent_network import AgentNetwork
 from agents.agent import Agent
